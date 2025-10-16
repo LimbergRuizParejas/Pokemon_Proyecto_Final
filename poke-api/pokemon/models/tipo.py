@@ -12,19 +12,22 @@ class Tipo(models.Model):
         db_table = 'tipos'
 
     def calcular_multiplicador_danio(self, tipo_ataque_nombre):
-        if not self.damage_relations:
+        if not self.damage_relations or not isinstance(self.damage_relations, dict):
             return 1.0
 
         relaciones = self.damage_relations
         multiplicador = 1.0
 
-        if any(tipo['name'] == tipo_ataque_nombre for tipo in relaciones.get('double_damage_from', [])):
-            multiplicador *= 2.0
+        if 'double_damage_from' in relaciones:
+            if any(tipo == tipo_ataque_nombre for tipo in relaciones['double_damage_from']):
+                multiplicador *= 2.0
 
-        if any(tipo['name'] == tipo_ataque_nombre for tipo in relaciones.get('half_damage_from', [])):
-            multiplicador *= 0.5
+        if 'half_damage_from' in relaciones:
+            if any(tipo == tipo_ataque_nombre for tipo in relaciones['half_damage_from']):
+                multiplicador *= 0.5
 
-        if any(tipo['name'] == tipo_ataque_nombre for tipo in relaciones.get('no_damage_from', [])):
-            multiplicador *= 0.0
+        if 'no_damage_from' in relaciones:
+            if any(tipo == tipo_ataque_nombre for tipo in relaciones['no_damage_from']):
+                multiplicador *= 0.0
 
         return multiplicador

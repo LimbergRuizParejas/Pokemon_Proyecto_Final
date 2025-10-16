@@ -19,22 +19,19 @@ class PokeAPIService:
         return tipo
 
     def obtener_relaciones_dano(self, tipo_url):
-        """Obtiene las relaciones de daño de un tipo desde PokeAPI"""
         response = requests.get(tipo_url)
         if response.status_code != 200:
             return {}
 
         data = response.json()
         damage_relations = data['damage_relations']
-
-        # Extraer solo los nombres de las relaciones
         relaciones_simplificadas = {
-            'double_damage_from': [{'name': t['name']} for t in damage_relations['double_damage_from']],
-            'double_damage_to': [{'name': t['name']} for t in damage_relations['double_damage_to']],
-            'half_damage_from': [{'name': t['name']} for t in damage_relations['half_damage_from']],
-            'half_damage_to': [{'name': t['name']} for t in damage_relations['half_damage_to']],
-            'no_damage_from': [{'name': t['name']} for t in damage_relations['no_damage_from']],
-            'no_damage_to': [{'name': t['name']} for t in damage_relations['no_damage_to']],
+            'double_damage_from': [t['name'] for t in damage_relations['double_damage_from']],
+            'double_damage_to': [t['name'] for t in damage_relations['double_damage_to']],
+            'half_damage_from': [t['name'] for t in damage_relations['half_damage_from']],
+            'half_damage_to': [t['name'] for t in damage_relations['half_damage_to']],
+            'no_damage_from': [t['name'] for t in damage_relations['no_damage_from']],
+            'no_damage_to': [t['name'] for t in damage_relations['no_damage_to']],
         }
 
         return relaciones_simplificadas
@@ -58,69 +55,59 @@ class PokeAPIService:
             return response.json()
         return None
 
-    def guardar_pokemon_en_bd(self, datos_pokeapi):
-        """Transforma los datos de PokeAPI y guarda en nuestra BD"""
-        try:
-            # Crear o obtener el pokémon
-            pokemon, created = Pokemon.objects.get_or_create(
-                name=datos_pokeapi['name'],
-                defaults={
-                    'base_experience': datos_pokeapi['base_experience'],
-                    'height': datos_pokeapi['height'],
-                    'weight': datos_pokeapi['weight'],
-                    'sprite_front': datos_pokeapi['sprites']['front_default'],
-                    'sprite_back': datos_pokeapi['sprites']['back_default'],
-                }
-            )
+    def obtener_info_tipos_completa(self, tipos_data):
+        """Obtiene información completa de los tipos incluyendo relaciones de daño"""
+        tipos_info = []
 
-            # Si el pokémon ya existe, retornarlo (evitar duplicados)
-            if not created:
-                return pokemon
+        for tipo_data in tipos_data:
+            tipo = self.obtener_o_crear_tipo(tipo_data['type'])
 
-            # Procesar tipos
-            for tipo_data in datos_pokeapi['types']:
-                tipo = self.obtener_o_crear_tipo(tipo_data['type'])
-                pokemon.tipos.add(tipo)
+            tipo_info = {
+                'name': tipo.name,
+                'damage_relations': tipo.damage_relations
+            }
+            tipos_info.append(tipo_info)
 
-            # Procesar stats
-            stats = {stat['stat']['name']: stat['base_stat'] for stat in datos_pokeapi['stats']}
-            pokemon.hp = stats.get('hp', 50)
-            pokemon.attack = stats.get('attack', 50)
-            pokemon.defense = stats.get('defense', 50)
-            pokemon.special_attack = stats.get('special-attack', 50)
-            pokemon.special_defense = stats.get('special-defense', 50)
-            pokemon.speed = stats.get('speed', 50)
+        return tipos_info
 
-            # Procesar movimientos (elegir 4 aleatorios)
-            movimientos_data = datos_pokeapi['moves']
-            movimientos_seleccionados = random.sample(
-                movimientos_data,
-                min(4, len(movimientos_data))
-            )
+    def calcular_debilidades_resistencias(self, tipos_info):
+        """Calcula debilidades y resistencias basado en todos los tipos del pokémon"""
+        todas_debilidades = set()
+        todas_resistencias = set()
+        todas_inmunidades = set()
 
-            for movimiento_data in movimientos_seleccionados:
-                movimiento_url = movimiento_data['move']['url']
-                detalle_movimiento = self.obtener_detalle_movimiento(movimiento_url)
+        for tipo_info in tipos_info:
+            damage_relations = tipo_info['damage_relations']
 
-                if detalle_movimiento and detalle_movimiento.get('power') is not None:
-                    # Obtener tipo del movimiento
-                    tipo_movimiento = self.obtener_o_crear_tipo(detalle_movimiento['type'])
+            # Debilidades (doble daño)
+            for debilidad in damage_relations.get('double_damage_from', []):
+                todas_debilidades.add(debilidad)
 
-                    # Crear o obtener el movimiento
-                    movimiento, mov_created = Movimiento.objects.get_or_create(
-                        name=movimiento_data['move']['name'],
-                        defaults={
-                            'power': detalle_movimiento.get('power'),
-                            'pp': detalle_movimiento.get('pp', 20),
-                            'accuracy': detalle_movimiento.get('accuracy'),
-                            'tipo': tipo_movimiento
-                        }
-                    )
-                    pokemon.movimientos.add(movimiento)
+            # Resistencias (medio daño)
+            for resistencia in damage_relations.get('half_damage_from', []):
+                todas_resistencias.add(resistencia)
 
-            pokemon.save()
-            return pokemon
+            # Inmunidades (sin daño)
+            for inmunidad in damage_relations.get('no_damage_from', []):
+                todas_inmunidades.add(inmunidad)
 
-        except Exception as e:
-            print(f"Error guardando pokémon: {e}")
-            return None
+        # Aplicar lógica de multiplicadores combinados
+        debilidades_finales = []
+        resistencias_finales = []
+        inmunidades_finales = list(todas_inmunidades)
+
+        # Para debilidades: si no está en resistencias o inmunidades
+        for debilidad in todas_debilidades:
+            if debilidad not in todas_resistencias and debilidad not in todas_inmunidades:
+                debilidades_finales.append(debilidad)
+
+        # Para resistencias: si no está en debilidades
+        for resistencia in todas_resistencias:
+            if resistencia not in todas_debilidades:
+                resistencias_finales.append(resistencia)
+
+        return {
+            'debilidades': debilidades_finales,
+            'resistencias': resistencias_finales,
+            'inmunidades': inmunidades_finales
+        }
