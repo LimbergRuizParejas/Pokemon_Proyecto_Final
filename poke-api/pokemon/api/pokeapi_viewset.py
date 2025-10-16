@@ -9,16 +9,37 @@ class PokemonAleatorioView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """Obtiene un pokémon aleatorio de la PokeAPI con información completa de tipos"""
+        """Obtiene un pokémon aleatorio de la PokeAPI con información completa"""
         service = PokeAPIService()
         pokemon_data = service.obtener_pokemon_aleatorio()
 
         if pokemon_data:
+            # Guardar el pokémon en nuestra BD (esto generará los movimientos)
+            pokemon_guardado = service.guardar_pokemon_en_bd(pokemon_data)
+
+            if not pokemon_guardado:
+                return Response(
+                    {"error": "Error al guardar el pokémon en la base de datos"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
             # Obtener información completa de tipos con relaciones de daño
             tipos_info = service.obtener_info_tipos_completa(pokemon_data['types'])
 
             # Calcular debilidades y resistencias
             relaciones_dano = service.calcular_debilidades_resistencias(tipos_info)
+
+            # Obtener movimientos del pokémon guardado
+            movimientos_info = []
+            for movimiento in pokemon_guardado.movimientos.all():
+                movimientos_info.append({
+                    'id': movimiento.id,
+                    'name': movimiento.name,
+                    'power': movimiento.power,
+                    'pp': movimiento.pp,
+                    'accuracy': movimiento.accuracy,
+                    'tipo': movimiento.tipo.name
+                })
 
             pokemon_info = {
                 'id': pokemon_data['id'],
@@ -28,12 +49,14 @@ class PokemonAleatorioView(APIView):
                     'back_default': pokemon_data['sprites']['back_default']
                 },
                 'types': [tipo_info['name'] for tipo_info in tipos_info],
-                'types_detallados': tipos_info,  # Información completa de cada tipo
-                'relaciones_dano': relaciones_dano,  # Debilidades, resistencias, inmunidades
+                'types_detallados': tipos_info,
+                'relaciones_dano': relaciones_dano,
                 'stats': {s['stat']['name']: s['base_stat'] for s in pokemon_data['stats']},
+                'movimientos': movimientos_info,  # ¡Ahora incluye movimientos!
                 'height': pokemon_data['height'],
                 'weight': pokemon_data['weight'],
-                'base_experience': pokemon_data['base_experience']
+                'base_experience': pokemon_data['base_experience'],
+                'pokemon_db_id': pokemon_guardado.id  # ID en nuestra base de datos
             }
             return Response(pokemon_info)
 

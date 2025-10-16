@@ -111,3 +111,175 @@ class PokeAPIService:
             'resistencias': resistencias_finales,
             'inmunidades': inmunidades_finales
         }
+
+    def guardar_pokemon_en_bd(self, datos_pokeapi):
+        """Transforma los datos de PokeAPI y guarda en nuestra BD"""
+        try:
+            # Verificar si el pokémon ya existe en nuestra BD
+            pokemon, created = Pokemon.objects.get_or_create(
+                name=datos_pokeapi['name'],
+                defaults={
+                    'base_experience': datos_pokeapi['base_experience'],
+                    'height': datos_pokeapi['height'],
+                    'weight': datos_pokeapi['weight'],
+                    'sprite_front': datos_pokeapi['sprites']['front_default'],
+                    'sprite_back': datos_pokeapi['sprites']['back_default'],
+                    'hp': 0,  # Valores temporales, se actualizarán después
+                    'attack': 0,
+                    'defense': 0,
+                    'special_attack': 0,
+                    'special_defense': 0,
+                    'speed': 0,
+                }
+            )
+
+            # Si el pokémon ya existe, retornarlo (evitar duplicados)
+            if not created:
+                return pokemon
+
+            # Procesar tipos
+            for tipo_data in datos_pokeapi['types']:
+                tipo = self.obtener_o_crear_tipo(tipo_data['type'])
+                pokemon.tipos.add(tipo)
+
+            # Procesar stats
+            stats = {stat['stat']['name']: stat['base_stat'] for stat in datos_pokeapi['stats']}
+            pokemon.hp = stats.get('hp', 50)
+            pokemon.attack = stats.get('attack', 50)
+            pokemon.defense = stats.get('defense', 50)
+            pokemon.special_attack = stats.get('special-attack', 50)
+            pokemon.special_defense = stats.get('special-defense', 50)
+            pokemon.speed = stats.get('speed', 50)
+
+            # Procesar movimientos (elegir 4 aleatorios)
+            movimientos_data = datos_pokeapi['moves']
+            # Filtrar movimientos que tienen detalles disponibles
+            movimientos_con_detalles = [m for m in movimientos_data if m['version_group_details']]
+
+            if len(movimientos_con_detalles) >= 4:
+                movimientos_seleccionados = random.sample(movimientos_con_detalles, 4)
+            else:
+                movimientos_seleccionados = movimientos_con_detalles
+
+            movimientos_guardados = 0
+            for movimiento_data in movimientos_seleccionados:
+                if movimientos_guardados >= 4:
+                    break
+
+                movimiento_url = movimiento_data['move']['url']
+                detalle_movimiento = self.obtener_detalle_movimiento(movimiento_url)
+
+                if detalle_movimiento:
+                    # Solo guardar movimientos que tienen poder (no None) y son de la generación 1
+                    if detalle_movimiento.get('power') is not None:
+                        # Obtener tipo del movimiento
+                        tipo_movimiento_data = detalle_movimiento['type']
+                        tipo_movimiento = self.obtener_o_crear_tipo(tipo_movimiento_data)
+
+                        # Crear o obtener el movimiento
+                        movimiento, mov_created = Movimiento.objects.get_or_create(
+                            name=movimiento_data['move']['name'],
+                            defaults={
+                                'power': detalle_movimiento.get('power'),
+                                'pp': detalle_movimiento.get('pp', 20),
+                                'accuracy': detalle_movimiento.get('accuracy'),
+                                'tipo': tipo_movimiento
+                            }
+                        )
+                        pokemon.movimientos.add(movimiento)
+                        movimientos_guardados += 1
+
+            # Si no conseguimos 4 movimientos con poder, agregar algunos sin poder como fallback
+            if movimientos_guardados < 4:
+                movimientos_fallback = [m for m in movimientos_data if m not in movimientos_seleccionados]
+                for movimiento_data in movimientos_fallback[:4 - movimientos_guardados]:
+                    movimiento_url = movimiento_data['move']['url']
+                    detalle_movimiento = self.obtener_detalle_movimiento(movimiento_url)
+
+                    if detalle_movimiento:
+                        tipo_movimiento_data = detalle_movimiento['type']
+                        tipo_movimiento = self.obtener_o_crear_tipo(tipo_movimiento_data)
+
+                        movimiento, mov_created = Movimiento.objects.get_or_create(
+                            name=movimiento_data['move']['name'],
+                            defaults={
+                                'power': detalle_movimiento.get('power', 50),  # Valor por defecto
+                                'pp': detalle_movimiento.get('pp', 20),
+                                'accuracy': detalle_movimiento.get('accuracy', 100),
+                                'tipo': tipo_movimiento
+                            }
+                        )
+                        pokemon.movimientos.add(movimiento)
+                        movimientos_guardados += 1
+
+            pokemon.save()
+            return pokemon
+
+        except Exception as e:
+            print(f"Error guardando pokémon: {e}")
+            return None
+
+    def obtener_pokemon_por_nombre(self, nombre):
+        """Obtiene un pokémon por nombre de la PokeAPI"""
+        response = requests.get(f"{self.BASE_URL}/pokemon/{nombre.lower()}")
+        if response.status_code == 200:
+            return response.json()
+        return None
+
+    def obtener_pokemones_iniciales(self):
+        """Obtiene los 3 pokémones iniciales: Bulbasaur, Charmander, Squirtle"""
+        iniciales = ['bulbasaur', 'charmander', 'squirtle']
+        pokemones = []
+
+        for nombre in iniciales:
+            pokemon_data = self.obtener_pokemon_por_nombre(nombre)
+            if pokemon_data:
+                pokemones.append(pokemon_data)
+
+        return pokemones
+
+    def obtener_pokemon_con_movimientos_aleatorios(self, pokemon_data):
+        """Obtiene un pokémon con 4 movimientos aleatorios (sin guardar en BD)"""
+        # Procesar movimientos (elegir 4 aleatorios)
+        movimientos_data = pokemon_data['moves']
+        # Filtrar movimientos que tienen detalles disponibles
+        movimientos_con_detalles = [m for m in movimientos_data if m['version_group_details']]
+
+        if len(movimientos_con_detalles) >= 4:
+            movimientos_seleccionados = random.sample(movimientos_con_detalles, 4)
+        else:
+            movimientos_seleccionados = movimientos_con_detalles
+
+        movimientos_info = []
+        for movimiento_data in movimientos_seleccionados:
+            movimiento_url = movimiento_data['move']['url']
+            detalle_movimiento = self.obtener_detalle_movimiento(movimiento_url)
+
+            if detalle_movimiento and detalle_movimiento.get('power') is not None:
+                movimiento_info = {
+                    'name': movimiento_data['move']['name'],
+                    'power': detalle_movimiento.get('power'),
+                    'pp': detalle_movimiento.get('pp', 20),
+                    'accuracy': detalle_movimiento.get('accuracy'),
+                    'tipo': detalle_movimiento['type']['name']
+                }
+                movimientos_info.append(movimiento_info)
+
+        # Si no conseguimos 4 movimientos con poder, agregar algunos sin poder como fallback
+        if len(movimientos_info) < 4:
+            movimientos_fallback = [m for m in movimientos_data if m not in movimientos_seleccionados]
+            for movimiento_data in movimientos_fallback[:4 - len(movimientos_info)]:
+                movimiento_url = movimiento_data['move']['url']
+                detalle_movimiento = self.obtener_detalle_movimiento(movimiento_url)
+
+                if detalle_movimiento:
+                    movimiento_info = {
+                        'name': movimiento_data['move']['name'],
+                        'power': detalle_movimiento.get('power', 50),  # Valor por defecto
+                        'pp': detalle_movimiento.get('pp', 20),
+                        'accuracy': detalle_movimiento.get('accuracy', 100),
+                        'tipo': detalle_movimiento['type']['name']
+                    }
+                    movimientos_info.append(movimiento_info)
+
+        return movimientos_info

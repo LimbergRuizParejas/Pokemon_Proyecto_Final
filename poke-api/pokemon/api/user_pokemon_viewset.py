@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from pokemon.models import UserPokemon
+from pokemon.services import UserService
 
 
 class UserPokemonViewSet(viewsets.ModelViewSet):
@@ -14,6 +15,22 @@ class UserPokemonViewSet(viewsets.ModelViewSet):
         pokemon_sprite_front = serializers.URLField(source='pokemon.sprite_front', read_only=True)
         pokemon_sprite_back = serializers.URLField(source='pokemon.sprite_back', read_only=True)
         pokemon_stats = serializers.SerializerMethodField()
+
+        def get_queryset(self):
+            return UserPokemon.objects.filter(user=self.request.user)
+
+        def list(self, request, *args, **kwargs):
+            """Lista los pokémones del usuario, verifica si necesita elegir inicial"""
+            response = super().list(request, *args, **kwargs)
+
+            # Si el usuario no tiene pokémones, sugerir elegir inicial
+            if not UserService.usuario_tiene_pokemon_inicial(request.user):
+                response.data = {
+                    "message": "Aún no has elegido tu pokémon inicial. Usa /api/pokemon/seleccion-inicial/opciones/ para ver las opciones.",
+                    "pokemones": response.data
+                }
+
+            return response
 
         class Meta:
             model = UserPokemon
