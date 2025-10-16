@@ -1,0 +1,1 @@
+from .pokenmon_viewset import *
