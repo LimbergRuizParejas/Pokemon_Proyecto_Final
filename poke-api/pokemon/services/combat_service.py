@@ -1,8 +1,9 @@
 import random
-from ..models import Movimiento, Pokemon, UserPokemon
+from ..models import Movimiento, Pokemon, UserPokemon, Batalla
 
 
 class CombatService:
+
     @staticmethod
     def calcular_multiplicador_efectividad(movimiento, pokemon_defensor):
         """Calcula el multiplicador de efectividad basado en tipos"""
@@ -18,15 +19,23 @@ class CombatService:
     @staticmethod
     def calcular_danio(movimiento, pokemon_atacante, pokemon_defensor):
         """Calcula el daño considerando tipos, stats y relaciones de daño"""
+        if movimiento.power is None:
+            return {
+                'danio': 0,
+                'multiplicador_efectividad': 1.0,
+                'efectividad': "Sin daño"
+            }
+
         # Daño base del movimiento
-        poder = movimiento.power or 50
+        poder = movimiento.power
 
         # Stats del atacante y defensor
         ataque = pokemon_atacante.attack
         defensa = pokemon_defensor.defense
 
-        # Cálculo base de daño
-        danio_base = (((2 * 50 / 5 + 2) * poder * ataque / defensa) / 50) + 2
+        # Cálculo base de daño (fórmula simplificada de Pokémon)
+        nivel = 50  # Nivel fijo para simplificar
+        danio_base = (((2 * nivel / 5 + 2) * poder * ataque / defensa) / 50) + 2
 
         # Multiplicador por efectividad de tipos
         multiplicador_efectividad = CombatService.calcular_multiplicador_efectividad(
@@ -86,3 +95,17 @@ class CombatService:
 
         except Movimiento.DoesNotExist:
             return {"error": "Movimiento no encontrado"}
+
+    @staticmethod
+    def determinar_quien_ataca_primero(user_pokemon, pokemon_salvaje):
+        """Determina qué pokémon ataca primero basado en velocidad"""
+        velocidad_usuario = user_pokemon.pokemon.speed
+        velocidad_salvaje = pokemon_salvaje.speed
+
+        if velocidad_usuario > velocidad_salvaje:
+            return 'usuario'
+        elif velocidad_salvaje > velocidad_usuario:
+            return 'salvaje'
+        else:
+            # Empate - aleatorio
+            return random.choice(['usuario', 'salvaje'])

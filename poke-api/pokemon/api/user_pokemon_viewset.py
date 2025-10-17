@@ -3,57 +3,11 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from pokemon.models import UserPokemon
-from pokemon.services import UserService
+from .serializers import UserPokemonSerializer
 
 
 class UserPokemonViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
-
-    class UserPokemonSerializer(serializers.ModelSerializer):
-        pokemon_nombre = serializers.CharField(source='pokemon.name', read_only=True)
-        pokemon_tipos = serializers.SerializerMethodField()
-        pokemon_sprite_front = serializers.URLField(source='pokemon.sprite_front', read_only=True)
-        pokemon_sprite_back = serializers.URLField(source='pokemon.sprite_back', read_only=True)
-        pokemon_stats = serializers.SerializerMethodField()
-
-        def get_queryset(self):
-            return UserPokemon.objects.filter(user=self.request.user)
-
-        def list(self, request, *args, **kwargs):
-            """Lista los pokémones del usuario, verifica si necesita elegir inicial"""
-            response = super().list(request, *args, **kwargs)
-
-            # Si el usuario no tiene pokémones, sugerir elegir inicial
-            if not UserService.usuario_tiene_pokemon_inicial(request.user):
-                response.data = {
-                    "message": "Aún no has elegido tu pokémon inicial. Usa /api/pokemon/seleccion-inicial/opciones/ para ver las opciones.",
-                    "pokemones": response.data
-                }
-
-            return response
-
-        class Meta:
-            model = UserPokemon
-            fields = [
-                'id', 'pokemon', 'pokemon_nombre', 'is_in_team', 'current_hp',
-                'nivel', 'pokemon_tipos', 'pokemon_sprite_front', 'pokemon_sprite_back',
-                'pokemon_stats'
-            ]
-            read_only_fields = ('user', 'current_hp', 'nivel')
-
-        def get_pokemon_tipos(self, obj):
-            return [tipo.name for tipo in obj.pokemon.tipos.all()]
-
-        def get_pokemon_stats(self, obj):
-            return {
-                'hp': obj.pokemon.hp,
-                'attack': obj.pokemon.attack,
-                'defense': obj.pokemon.defense,
-                'special_attack': obj.pokemon.special_attack,
-                'special_defense': obj.pokemon.special_defense,
-                'speed': obj.pokemon.speed
-            }
-
     serializer_class = UserPokemonSerializer
 
     def get_queryset(self):
@@ -62,16 +16,46 @@ class UserPokemonViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+    def list(self, request, *args, **kwargs):
+        """Devuelve equipo y reserva por separado"""
+        queryset = self.get_queryset()
+
+        equipo = queryset.filter(is_in_team=True)
+        reserva = queryset.filter(is_in_team=False)
+
+        # Verificar límites
+        if equipo.count() > 6:
+            # Si por algún error hay más de 6, dejar solo los primeros 6
+            equipo = equipo[:6]
+
+        if reserva.count() > 10:
+            # Si hay más de 10 en reserva, dejar solo los primeros 10
+            reserva = reserva[:10]
+
+        equipo_serializer = self.get_serializer(equipo, many=True)
+        reserva_serializer = self.get_serializer(reserva, many=True)
+
+        return Response({
+            'equipo': equipo_serializer.data,
+            'reserva': reserva_serializer.data,
+            'limites': {
+                'max_equipo': 6,
+                'max_reserva': 10,
+                'actual_equipo': equipo.count(),
+                'actual_reserva': reserva.count()
+            }
+        })
+
     @action(detail=False, methods=['get'])
     def equipo(self, request):
-        """Obtiene solo los pokémones en el equipo de combate (máximo 6)"""
+        """Obtiene solo los pokémones en el equipo de combate"""
         equipo = self.get_queryset().filter(is_in_team=True)
         serializer = self.get_serializer(equipo, many=True)
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'])
     def reserva(self, request):
-        """Obtiene pokémones en reserva"""
+        """Obtiene solo los pokémones en reserva"""
         reserva = self.get_queryset().filter(is_in_team=False)
         serializer = self.get_serializer(reserva, many=True)
         return Response(serializer.data)
@@ -82,16 +66,162 @@ class UserPokemonViewSet(viewsets.ModelViewSet):
         user_pokemon = self.get_object()
 
         if user_pokemon.is_in_team:
+            # Mover de equipo a reserva
+            # Verificar si la reserva está llena
+            reserva_count = self.get_queryset().filter(is_in_team=False).count()
+            if reserva_count >= 10:
+                return Response(
+                    {"error": "Tu reserva está llena (máximo 10 pokémones). Libera uno primero."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             user_pokemon.is_in_team = False
+            user_pokemon.save()
+
+            return Response({
+                "message": f"{user_pokemon.pokemon.name} movido a la reserva",
+                "nuevo_estado": "reserva"
+            })
         else:
+            # Mover de reserva a equipo
             equipo_count = self.get_queryset().filter(is_in_team=True).count()
             if equipo_count >= 6:
                 return Response(
-                    {"error": "Ya tienes 6 pokémones en tu equipo. Libera uno primero."},
+                    {"error": "Tu equipo está lleno (máximo 6 pokémones). Usa el intercambio para reemplazar uno."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            user_pokemon.is_in_team = True
 
-        user_pokemon.save()
-        serializer = self.get_serializer(user_pokemon)
-        return Response(serializer.data)
+            user_pokemon.is_in_team = True
+            user_pokemon.save()
+
+            return Response({
+                "message": f"{user_pokemon.pokemon.name} movido al equipo de combate",
+                "nuevo_estado": "equipo"
+            })
+
+    @action(detail=True, methods=['post'])
+    def liberar(self, request, pk=None):
+        """Libera un pokémon (lo elimina de la colección del usuario)"""
+        user_pokemon = self.get_object()
+        nombre_pokemon = user_pokemon.pokemon.name
+
+        user_pokemon.delete()
+
+        return Response({
+            "message": f"Has liberado a {nombre_pokemon}",
+            "pokemon_liberado": nombre_pokemon
+        })
+
+    @action(detail=False, methods=['post'])
+    def intercambiar(self, request):
+        """
+        Intercambia un pokémon del equipo con uno de la reserva
+        Útil cuando ambas listas están llenas
+        """
+        pokemon_equipo_id = request.data.get('pokemon_equipo_id')
+        pokemon_reserva_id = request.data.get('pokemon_reserva_id')
+
+        if not pokemon_equipo_id or not pokemon_reserva_id:
+            return Response(
+                {"error": "Se requieren ambos IDs: pokemon_equipo_id y pokemon_reserva_id"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Verificar que el pokémon del equipo existe y está en el equipo
+            pokemon_equipo = UserPokemon.objects.get(
+                id=pokemon_equipo_id,
+                user=request.user,
+                is_in_team=True
+            )
+
+            # Verificar que el pokémon de reserva existe y está en reserva
+            pokemon_reserva = UserPokemon.objects.get(
+                id=pokemon_reserva_id,
+                user=request.user,
+                is_in_team=False
+            )
+
+            # Realizar el intercambio
+            pokemon_equipo.is_in_team = False
+            pokemon_reserva.is_in_team = True
+
+            pokemon_equipo.save()
+            pokemon_reserva.save()
+
+            return Response({
+                "message": f"Intercambio exitoso: {pokemon_equipo.pokemon.name} → Reserva, {pokemon_reserva.pokemon.name} → Equipo",
+                "intercambio": {
+                    "salio_del_equipo": {
+                        "user_pokemon_id": pokemon_equipo.id,
+                        "nombre": pokemon_equipo.pokemon.name
+                    },
+                    "entro_al_equipo": {
+                        "user_pokemon_id": pokemon_reserva.id,
+                        "nombre": pokemon_reserva.pokemon.name
+                    }
+                }
+            })
+
+        except UserPokemon.DoesNotExist:
+            return Response(
+                {"error": "Uno de los pokémones no fue encontrado o no está en la ubicación esperada"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @action(detail=False, methods=['post'])
+    def reemplazar_en_equipo(self, request):
+        """
+        Reemplaza un pokémon del equipo con uno de la reserva
+        El pokémon del equipo va a la reserva automáticamente
+        """
+        pokemon_sale_id = request.data.get('pokemon_sale_id')  # Pokémon que sale del equipo
+        pokemon_entra_id = request.data.get('pokemon_entra_id')  # Pokémon que entra al equipo
+
+        if not pokemon_sale_id or not pokemon_entra_id:
+            return Response(
+                {"error": "Se requieren ambos IDs: pokemon_sale_id y pokemon_entra_id"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Verificar que el pokémon que sale está en el equipo
+            pokemon_sale = UserPokemon.objects.get(
+                id=pokemon_sale_id,
+                user=request.user,
+                is_in_team=True
+            )
+
+            # Verificar que el pokémon que entra está en reserva
+            pokemon_entra = UserPokemon.objects.get(
+                id=pokemon_entra_id,
+                user=request.user,
+                is_in_team=False
+            )
+
+            # Realizar el reemplazo
+            pokemon_sale.is_in_team = False
+            pokemon_entra.is_in_team = True
+
+            pokemon_sale.save()
+            pokemon_entra.save()
+
+            return Response({
+                "message": f"Reemplazo exitoso: {pokemon_sale.pokemon.name} sale del equipo, {pokemon_entra.pokemon.name} entra al equipo",
+                "reemplazo": {
+                    "sale_del_equipo": {
+                        "user_pokemon_id": pokemon_sale.id,
+                        "nombre": pokemon_sale.pokemon.name
+                    },
+                    "entra_al_equipo": {
+                        "user_pokemon_id": pokemon_entra.id,
+                        "nombre": pokemon_entra.pokemon.name
+                    }
+                }
+            })
+
+        except UserPokemon.DoesNotExist:
+            return Response(
+                {"error": "Uno de los pokémones no fue encontrado o no está en la ubicación esperada"},
+                status=status.HTTP_404_NOT_FOUND
+            )
