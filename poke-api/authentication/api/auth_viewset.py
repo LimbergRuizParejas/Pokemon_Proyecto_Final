@@ -37,7 +37,6 @@ class RegisterView(APIView):
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
-            # Ya NO asignamos pokémones automáticamente
             return Response({
                 'user': UserSerializer(user).data,
                 'message': 'Usuario creado exitosamente. Ahora elige tu pokémon inicial.'

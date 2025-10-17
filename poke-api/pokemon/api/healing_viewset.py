@@ -12,7 +12,6 @@ class HealingViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['post'])
     def curar_todos(self, request):
-        """Cura todos los Pokémon del usuario (restaura HP al máximo)"""
         try:
             cantidad_curados = HealingService.curar_todos_los_pokemon(request.user)
 
@@ -28,7 +27,6 @@ class HealingViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['post'])
     def curar(self, request):
-        """Cura un Pokémon específico"""
         user_pokemon_id = request.data.get('user_pokemon_id')
 
         if not user_pokemon_id:
@@ -60,7 +58,6 @@ class HealingViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['post'])
     def revivir_todos(self, request):
-        """Revive todos los Pokémon derrotados del usuario"""
         try:
             cantidad_revividos = HealingService.revivir_todos_los_pokemon(request.user)
 
@@ -76,7 +73,6 @@ class HealingViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['post'])
     def revivir(self, request):
-        """Revive un Pokémon específico"""
         user_pokemon_id = request.data.get('user_pokemon_id')
 
         if not user_pokemon_id:
@@ -108,7 +104,6 @@ class HealingViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'])
     def estado(self, request):
-        """Muestra el estado actual de los Pokémon (para ver cuáles necesitan curación)"""
         from pokemon.models import UserPokemon
 
         pokemones = UserPokemon.objects.filter(user=request.user)

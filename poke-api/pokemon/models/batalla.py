@@ -16,12 +16,10 @@ class Batalla(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='batallas')
     pokemon_salvaje = models.ForeignKey(Pokemon, on_delete=models.CASCADE)
 
-    # Estado del combate
     estado = models.CharField(max_length=10, choices=ESTADOS, default='activa')
     pokebolas_restantes = models.IntegerField(default=5)
     curaciones_restantes = models.IntegerField(default=2)
 
-    # Trackeo de HP durante la batalla
     hp_salvaje_actual = models.IntegerField(default=0)
     user_pokemon_actual = models.ForeignKey('UserPokemon', on_delete=models.CASCADE, null=True, blank=True)
 
@@ -34,17 +32,14 @@ class Batalla(models.Model):
         db_table = 'batallas'
 
     def save(self, *args, **kwargs):
-        # Al crear una nueva batalla, inicializar el HP del salvaje
         if not self.pk and self.pokemon_salvaje:
             self.hp_salvaje_actual = self.pokemon_salvaje.hp
         super().save(*args, **kwargs)
 
     def obtener_pokemon_actual_usuario(self):
-        """Obtiene el pokémon actual del usuario en batalla"""
         if self.user_pokemon_actual and self.user_pokemon_actual.current_hp > 0:
             return self.user_pokemon_actual
 
-        # Si no hay pokémon actual o está debilitado, buscar otro del equipo
         pokemon_vivo = UserPokemon.objects.filter(
             user=self.user,
             is_in_team=True,
@@ -58,8 +53,6 @@ class Batalla(models.Model):
         return pokemon_vivo
 
     def verificar_fin_batalla(self):
-        """Verifica si la batalla debe terminar y actualiza el estado"""
-        # Verificar si el usuario tiene pokémones vivos
         tiene_pokemones_vivos = UserPokemon.objects.filter(
             user=self.user,
             is_in_team=True,

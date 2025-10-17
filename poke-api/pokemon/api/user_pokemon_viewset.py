@@ -17,7 +17,6 @@ class UserPokemonViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
     def list(self, request, *args, **kwargs):
-        """Devuelve equipo y reserva por separado"""
         queryset = self.get_queryset()
 
         equipo = queryset.filter(is_in_team=True)
@@ -25,11 +24,9 @@ class UserPokemonViewSet(viewsets.ModelViewSet):
 
         # Verificar límites
         if equipo.count() > 6:
-            # Si por algún error hay más de 6, dejar solo los primeros 6
             equipo = equipo[:6]
 
         if reserva.count() > 10:
-            # Si hay más de 10 en reserva, dejar solo los primeros 10
             reserva = reserva[:10]
 
         equipo_serializer = self.get_serializer(equipo, many=True)
@@ -48,26 +45,21 @@ class UserPokemonViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def equipo(self, request):
-        """Obtiene solo los pokémones en el equipo de combate"""
         equipo = self.get_queryset().filter(is_in_team=True)
         serializer = self.get_serializer(equipo, many=True)
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'])
     def reserva(self, request):
-        """Obtiene solo los pokémones en reserva"""
         reserva = self.get_queryset().filter(is_in_team=False)
         serializer = self.get_serializer(reserva, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=['post'])
     def cambiar_equipo(self, request, pk=None):
-        """Cambia un pokémon entre equipo y reserva"""
         user_pokemon = self.get_object()
 
         if user_pokemon.is_in_team:
-            # Mover de equipo a reserva
-            # Verificar si la reserva está llena
             reserva_count = self.get_queryset().filter(is_in_team=False).count()
             if reserva_count >= 10:
                 return Response(
@@ -101,7 +93,6 @@ class UserPokemonViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def liberar(self, request, pk=None):
-        """Libera un pokémon (lo elimina de la colección del usuario)"""
         user_pokemon = self.get_object()
         nombre_pokemon = user_pokemon.pokemon.name
 
@@ -114,10 +105,6 @@ class UserPokemonViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def intercambiar(self, request):
-        """
-        Intercambia un pokémon del equipo con uno de la reserva
-        Útil cuando ambas listas están llenas
-        """
         pokemon_equipo_id = request.data.get('pokemon_equipo_id')
         pokemon_reserva_id = request.data.get('pokemon_reserva_id')
 
@@ -128,21 +115,18 @@ class UserPokemonViewSet(viewsets.ModelViewSet):
             )
 
         try:
-            # Verificar que el pokémon del equipo existe y está en el equipo
             pokemon_equipo = UserPokemon.objects.get(
                 id=pokemon_equipo_id,
                 user=request.user,
                 is_in_team=True
             )
 
-            # Verificar que el pokémon de reserva existe y está en reserva
             pokemon_reserva = UserPokemon.objects.get(
                 id=pokemon_reserva_id,
                 user=request.user,
                 is_in_team=False
             )
 
-            # Realizar el intercambio
             pokemon_equipo.is_in_team = False
             pokemon_reserva.is_in_team = True
 
@@ -171,10 +155,6 @@ class UserPokemonViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def reemplazar_en_equipo(self, request):
-        """
-        Reemplaza un pokémon del equipo con uno de la reserva
-        El pokémon del equipo va a la reserva automáticamente
-        """
         pokemon_sale_id = request.data.get('pokemon_sale_id')  # Pokémon que sale del equipo
         pokemon_entra_id = request.data.get('pokemon_entra_id')  # Pokémon que entra al equipo
 
@@ -185,21 +165,18 @@ class UserPokemonViewSet(viewsets.ModelViewSet):
             )
 
         try:
-            # Verificar que el pokémon que sale está en el equipo
             pokemon_sale = UserPokemon.objects.get(
                 id=pokemon_sale_id,
                 user=request.user,
                 is_in_team=True
             )
 
-            # Verificar que el pokémon que entra está en reserva
             pokemon_entra = UserPokemon.objects.get(
                 id=pokemon_entra_id,
                 user=request.user,
                 is_in_team=False
             )
 
-            # Realizar el reemplazo
             pokemon_sale.is_in_team = False
             pokemon_entra.is_in_team = True
 

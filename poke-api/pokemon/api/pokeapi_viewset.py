@@ -10,12 +10,10 @@ class PokemonAleatorioView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """Obtiene un pokémon aleatorio de la PokeAPI con estructura estándar"""
         service = PokeAPIService()
         pokemon_data = service.obtener_pokemon_aleatorio()
 
         if pokemon_data:
-            # Guardar el pokémon en nuestra BD
             pokemon_guardado = service.guardar_pokemon_en_bd(pokemon_data)
 
             if not pokemon_guardado:
@@ -24,7 +22,6 @@ class PokemonAleatorioView(APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
 
-            # Usar el serializer estándar
             serializer = PokemonSerializer(pokemon_guardado)
             return Response(serializer.data)
 

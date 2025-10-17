@@ -12,7 +12,6 @@ class SeleccionInicialViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'])
     def opciones(self, request):
-        """Obtiene las 3 opciones de pokémones iniciales con estructura detallada"""
         if UserService.usuario_tiene_pokemon_inicial(request.user):
             return Response(
                 {"error": "Ya has elegido tu pokémon inicial"},
@@ -24,12 +23,10 @@ class SeleccionInicialViewSet(viewsets.ViewSet):
             opciones = []
 
             for pokemon_data in pokemones_data:
-                # Guardar el pokémon en BD para obtener estructura completa
                 service = PokeAPIService()
                 pokemon_guardado = service.guardar_pokemon_en_bd(pokemon_data)
 
                 if pokemon_guardado:
-                    # Usar el serializer estándar
                     serializer = PokemonSerializer(pokemon_guardado)
                     opciones.append(serializer.data)
 
@@ -43,7 +40,6 @@ class SeleccionInicialViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['post'])
     def elegir(self, request):
-        """Permite al usuario elegir UN pokémon inicial"""
         if UserService.usuario_tiene_pokemon_inicial(request.user):
             return Response(
                 {"error": "Ya has elegido tu pokémon inicial"},
@@ -61,7 +57,6 @@ class SeleccionInicialViewSet(viewsets.ViewSet):
         try:
             user_pokemon = UserService.elegir_pokemon_inicial(request.user, nombre_pokemon)
 
-            # Usar el serializer de UserPokemon para respuesta consistente
             from .serializers import UserPokemonSerializer
             serializer = UserPokemonSerializer(user_pokemon)
 
