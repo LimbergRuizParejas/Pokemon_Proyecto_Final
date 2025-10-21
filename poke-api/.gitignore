@@ -1,0 +1,59 @@
+# Archivos de Python
+*.pyc
+*.pyo
+__pycache__/
+
+# Entornos virtuales
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Archivos de configuración del editor de texto
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Archivos de bases de datos locales
+db.sqlite3
+*.sqlite3
+
+# Archivos de migración de Django
+*/migrations/*
+!*/migrations/__init__.py
+
+# Archivos de configuración de Django
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+*.db
+
+# Archivos de configuración de pruebas
+coverage/
+nosetests.xml
+*.cover
+
+# Archivos de Django Collectstatic (archivos estáticos)
+staticfiles/
+
+# Archivos temporales
+*.bak
+*.tmp
+*.swp
+*.swo
+
+# Entornos de Docker
+docker-compose.override.yml
+docker-compose.yml
+
+# Configuración de paquetes de terceros
+*.egg-info/
+.eggs/
+
+# Configuración de testing de dependencias
+pip-log.txt
+pip-delete-this-directory.txt
