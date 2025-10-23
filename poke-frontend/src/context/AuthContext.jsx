@@ -1,4 +1,5 @@
 import { createContext, useState, useEffect } from "react";
+import {jwtDecode}  from "jwt-decode";
 
 export const AuthContext = createContext();
 
@@ -8,13 +9,30 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      setUser({ token });
+      try {
+        const decoded = jwtDecode(token);
+        setUser({
+          username: decoded.username || decoded.user || "Entrenador",
+          token,
+        });
+      } catch (err) {
+        console.error("Error al decodificar token:", err);
+        localStorage.removeItem("token");
+      }
     }
   }, []);
 
   const login = (token) => {
-    localStorage.setItem("token", token);
-    setUser({ token });
+    try {
+      const decoded = jwtDecode(token);
+      setUser({
+        username: decoded.username || decoded.user || "Entrenador",
+        token,
+      });
+      localStorage.setItem("token", token);
+    } catch (err) {
+      console.error("Error al decodificar token:", err);
+    }
   };
 
   const logout = () => {

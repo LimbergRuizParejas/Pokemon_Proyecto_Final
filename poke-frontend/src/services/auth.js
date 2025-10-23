@@ -1,6 +1,5 @@
 const AUTH_URL = "http://localhost:8000/api/auth/"; // Ajusta si tu backend usa otra ruta base
 
-// 🔹 Iniciar sesión
 export async function loginUser(credentials) {
   try {
     const response = await fetch(`${AUTH_URL}login/`, {
@@ -21,7 +20,6 @@ export async function loginUser(credentials) {
   }
 }
 
-// 🔹 Registrar usuario nuevo
 export async function registerUser(userData) {
   try {
     const response = await fetch(`${AUTH_URL}register/`, {
