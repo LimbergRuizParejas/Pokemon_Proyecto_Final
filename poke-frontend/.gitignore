@@ -1,24 +1,40 @@
-# Logs
-logs
+# === Python / Django ===
+__pycache__/
+*.py[cod]
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
+*.pot
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+*.bak
+*.tmp
+*.swp
+*.swo
+*.py~
+db.sqlite3
+venv/
+env/
+ENV/
 
-node_modules
-dist
-dist-ssr
-*.local
+# === Django project ===
+poke-api/db.sqlite3
+poke-api/__pycache__/
+poke-api/**/__pycache__/
+poke-api/venv/
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# === React / Vite ===
+poke-frontend/node_modules/
+poke-frontend/.vite/
+poke-frontend/dist/
+poke-frontend/.DS_Store
+poke-frontend/.env*
+poke-frontend/*.local
+poke-frontend/package-lock.json
+
+# === IDE / OS ===
+.vscode/
+.idea/
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+Thumbs.db
