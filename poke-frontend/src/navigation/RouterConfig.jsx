@@ -7,16 +7,31 @@ import Reportes from "../pages/Reportes.jsx";
 import Login from "../pages/Login.jsx";
 import Register from "../pages/Register.jsx";
 import PrivateRoute from "../components/PrivateRoute.jsx";
+import SelectStarter from "../pages/SelectStarter.jsx";
 
 export default function RouterConfig() {
   return (
     <Routes>
-      {/* Rutas públicas */}
       <Route path="/" element={<City />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      {/* Rutas protegidas */}
+      <Route
+        path="/select-starter"
+        element={
+          <PrivateRoute>
+            <SelectStarter />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/dashboard"
+        element={
+          <PrivateRoute>
+            <Dashboard />
+          </PrivateRoute>
+        }
+      />
       <Route
         path="/capture"
         element={
@@ -30,14 +45,6 @@ export default function RouterConfig() {
         element={
           <PrivateRoute>
             <Battle />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/dashboard"
-        element={
-          <PrivateRoute>
-            <Dashboard />
           </PrivateRoute>
         }
       />

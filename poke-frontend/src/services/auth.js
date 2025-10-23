@@ -8,10 +8,9 @@ export async function loginUser(credentials) {
       body: JSON.stringify(credentials),
     });
 
-    if (!response.ok) throw new Error("Error al iniciar sesión");
-
     const data = await response.json();
-    // Guardar token en localStorage
+    if (!response.ok) throw new Error(data.detail || "Error al iniciar sesión");
+
     localStorage.setItem("token", data.access);
     return data;
   } catch (error) {
@@ -19,6 +18,7 @@ export async function loginUser(credentials) {
     return null;
   }
 }
+
 
 export async function registerUser(userData) {
   try {

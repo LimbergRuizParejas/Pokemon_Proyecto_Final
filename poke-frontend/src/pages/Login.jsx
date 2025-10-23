@@ -14,11 +14,41 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+
     const data = await loginUser(form);
 
     if (data?.access) {
       login(data.access);
-      navigate("/"); // redirige a la ciudad o dashboard
+      
+      try {
+        const response = await fetch("http://localhost:8000/api/pokemon/mis-pokemones/", {
+          headers: { Authorization: `Bearer ${data.access}` },
+        });
+
+        if (!response.ok) {
+          console.warn("Error o usuario sin Pokémon, redirigiendo a selección...");
+          return navigate("/select-starter");
+        }
+
+        const pokemones = await response.json();
+        console.log("Pokémon del usuario:", pokemones);
+
+        // ✅ Nuevo chequeo: ambos arreglos vacíos => sin Pokémon inicial
+        const sinPokemon =
+          (!pokemones.equipo || pokemones.equipo.length === 0) &&
+          (!pokemones.reserva || pokemones.reserva.length === 0);
+
+        if (sinPokemon) {
+          navigate("/select-starter");
+        } else {
+          navigate("/dashboard");
+        }
+      } catch (err) {
+        console.error("Error al verificar Pokémon:", err);
+        navigate("/select-starter");
+      }
+
     } else {
       setError("Credenciales incorrectas");
     }
