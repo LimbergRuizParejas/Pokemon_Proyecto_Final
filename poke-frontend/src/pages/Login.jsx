@@ -34,7 +34,6 @@ export default function Login() {
         const pokemones = await response.json();
         console.log("Pokémon del usuario:", pokemones);
 
-        // ✅ Nuevo chequeo: ambos arreglos vacíos => sin Pokémon inicial
         const sinPokemon =
           (!pokemones.equipo || pokemones.equipo.length === 0) &&
           (!pokemones.reserva || pokemones.reserva.length === 0);
@@ -42,7 +41,7 @@ export default function Login() {
         if (sinPokemon) {
           navigate("/select-starter");
         } else {
-          navigate("/battle");
+          navigate("/dashboard");
         }
       } catch (err) {
         console.error("Error al verificar Pokémon:", err);

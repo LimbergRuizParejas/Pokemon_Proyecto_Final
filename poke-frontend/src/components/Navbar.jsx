@@ -10,11 +10,8 @@ export default function Navbar() {
   const { user, logout } = useContext(AuthContext);
 
   const links = [
-    { to: "/", label: "Ciudad" },
-    { to: "/capture", label: "Captura" },
     { to: "/battle", label: "Batalla" },
-    { to: "/dashboard", label: "Dashboard" },
-    { to: "/reportes", label: "Reportes" },
+    { to: "/dashboard", label: "Ver mi equipo" },
   ];
 
   const handleLogout = () => {
@@ -48,7 +45,7 @@ export default function Navbar() {
             {user ? (
               <div className="flex items-center space-x-4">
                 <span className="text-gray-700 font-medium">
-                  👋 Hola,{" "}
+                  👋 Bienvenido,{" "}
                   <span className="text-blue-700 font-semibold capitalize">
                     {user.username}
                   </span>

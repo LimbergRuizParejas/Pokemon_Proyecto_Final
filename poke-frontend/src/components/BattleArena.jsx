@@ -1,17 +1,17 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { 
-  attackInBattle, 
-  healInBattle, 
-  captureInBattle, 
+import {
+  attackInBattle,
+  healInBattle,
+  captureInBattle,
   fleeFromBattle,
-  changePokemonInBattle 
+  changePokemonInBattle
 } from "../services/battle.js";
 
 export default function BattleArena({ battleData, updateBattleData }) {
   const navigate = useNavigate();
-  
+
   const [log, setLog] = useState("Cargando batalla...");
   const [showMoves, setShowMoves] = useState(false);
   const [showBag, setShowBag] = useState(false);
@@ -37,11 +37,11 @@ export default function BattleArena({ battleData, updateBattleData }) {
 
   const updateBattleState = (response) => {
     const updatedBattle = { ...battleData };
-    
+
     if (response.accion === "atacar") {
       updatedBattle.hp_salvaje_actual = response.hp_salvaje_restante;
       updatedBattle.user_pokemon_actual.current_hp = response.hp_usuario_actual;
-      
+
       if (response.nuevo_pokemon_actual) {
         const newPokemon = updatedBattle.equipo_usuario.find(
           p => p.user_pokemon_id === response.nuevo_pokemon_actual
@@ -58,11 +58,11 @@ export default function BattleArena({ battleData, updateBattleData }) {
       updatedBattle.user_pokemon_actual.current_hp = response.hp_actual_usuario;
     } else if (response.accion === "huir") {
     }
-    
+
     updatedBattle.estado = response.batalla_terminada ? "terminada" : "activa";
-    
+
     updateBattleData(updatedBattle);
-    
+
     return response.batalla_terminada;
   };
 
@@ -71,10 +71,10 @@ export default function BattleArena({ battleData, updateBattleData }) {
 
     const team = battleData.equipo_usuario;
     const currentPokemonId = battleData.user_pokemon_actual.user_pokemon_id;
-    
+
     for (let i = 0; i < team.length; i++) {
       const nextPokemon = team[i];
-      
+
       if (nextPokemon.current_hp > 0 && nextPokemon.user_pokemon_id !== currentPokemonId) {
         try {
           const response = await changePokemonInBattle(battleData.id, nextPokemon.user_pokemon_id);
@@ -88,7 +88,7 @@ export default function BattleArena({ battleData, updateBattleData }) {
         }
       }
     }
-    
+
     await showMessageWithDelay("¡No tienes más Pokémon que usar!");
     return false;
   };
@@ -99,13 +99,13 @@ export default function BattleArena({ battleData, updateBattleData }) {
     setShowMoves(false);
     setIsLoading(true);
     setIsProcessingTurn(true);
-    
+
     try {
       await showMessageWithDelay(`${battleData.user_pokemon_actual.pokemon.name} usó ${move.name}!`);
-      
+
       const response = await attackInBattle(
-        battleData.id, 
-        battleData.user_pokemon_actual.user_pokemon_id, 
+        battleData.id,
+        battleData.user_pokemon_actual.user_pokemon_id,
         move.id
       );
 
@@ -124,7 +124,7 @@ export default function BattleArena({ battleData, updateBattleData }) {
         } else {
           effectivenessMessage = "Efectividad normal.";
         }
-        
+
         await showMessageWithDelay(
           `${effectivenessMessage} ¡Infligió ${response.resultado_usuario.danio} puntos de daño!`
         );
@@ -163,13 +163,11 @@ export default function BattleArena({ battleData, updateBattleData }) {
 
         if (response.hp_usuario_actual <= 0) {
           await showMessageWithDelay(`¡${battleData.user_pokemon_actual.pokemon.name} fue derrotado!`);
-          
-          const hasNextPokemon = await switchToNextPokemon();
-          if (!hasNextPokemon) {
-            await showMessageWithDelay("¡Has perdido la batalla!", 2000);
-            handleBattleEnd();
-          }
+          await showMessageWithDelay("¡Has perdido la batalla!", 2000);
+          handleBattleEnd();
+          return;
         }
+
       }
 
     } catch (error) {
@@ -192,10 +190,10 @@ export default function BattleArena({ battleData, updateBattleData }) {
     setShowBag(false);
     setIsLoading(true);
     setIsProcessingTurn(true);
-    
+
     try {
       await showMessageWithDelay("Usaste una cura.");
-      
+
       const response = await healInBattle(battleData.id, battleData.user_pokemon_actual.user_pokemon_id);
 
       if (response.error) {
@@ -245,10 +243,10 @@ export default function BattleArena({ battleData, updateBattleData }) {
     setShowBag(false);
     setIsLoading(true);
     setIsProcessingTurn(true);
-    
+
     try {
       await showMessageWithDelay(`Lanzaste una Pokéball a ${battleData.pokemon_salvaje.name}!`);
-      
+
       const response = await captureInBattle(battleData.id, battleData.user_pokemon_actual.user_pokemon_id);
 
       if (response.error) {
@@ -297,10 +295,10 @@ export default function BattleArena({ battleData, updateBattleData }) {
 
     setIsLoading(true);
     setIsProcessingTurn(true);
-    
+
     try {
       const response = await fleeFromBattle(battleData.id);
-      
+
       if (response.error) {
         await showMessageWithDelay(response.error);
         handleBattleEnd();
@@ -309,7 +307,7 @@ export default function BattleArena({ battleData, updateBattleData }) {
 
       await showMessageWithDelay(response.mensaje);
       updateBattleState(response);
-      
+
       if (response.batalla_terminada) {
         await delay(2000);
         handleBattleEnd();
@@ -331,7 +329,7 @@ export default function BattleArena({ battleData, updateBattleData }) {
 
   const handleSwitchPokemon = async () => {
     if (!battleData || isLoading || isProcessingTurn) return;
-    
+
     const hasSwitched = await switchToNextPokemon();
     if (!hasSwitched) {
       setLog("No hay otros Pokémon disponibles");
@@ -378,9 +376,8 @@ export default function BattleArena({ battleData, updateBattleData }) {
         <h2 className="text-lg font-bold text-gray-700 capitalize">{enemy.name}</h2>
         <div className="w-full bg-gray-200 h-3 rounded mt-1">
           <div
-            className={`h-3 rounded transition-all duration-500 ${
-              enemyHPPercent > 50 ? "bg-green-500" : enemyHPPercent > 20 ? "bg-yellow-500" : "bg-red-500"
-            }`}
+            className={`h-3 rounded transition-all duration-500 ${enemyHPPercent > 50 ? "bg-green-500" : enemyHPPercent > 20 ? "bg-yellow-500" : "bg-red-500"
+              }`}
             style={{ width: `${enemyHPPercent}%` }}
           ></div>
         </div>
@@ -412,9 +409,8 @@ export default function BattleArena({ battleData, updateBattleData }) {
         <h2 className="text-lg font-bold text-gray-700 capitalize">{player.name}</h2>
         <div className="w-full bg-gray-200 h-3 rounded mt-1">
           <div
-            className={`h-3 rounded transition-all duration-500 ${
-              playerHPPercent > 50 ? "bg-green-500" : playerHPPercent > 20 ? "bg-yellow-500" : "bg-red-500"
-            }`}
+            className={`h-3 rounded transition-all duration-500 ${playerHPPercent > 50 ? "bg-green-500" : playerHPPercent > 20 ? "bg-yellow-500" : "bg-red-500"
+              }`}
             style={{ width: `${playerHPPercent}%` }}
           ></div>
         </div>
@@ -508,7 +504,7 @@ export default function BattleArena({ battleData, updateBattleData }) {
           <div className="bg-white p-6 rounded-lg text-center">
             <h3 className="text-xl font-bold mb-4">Batalla Terminada</h3>
             <p className="mb-4">{log}</p>
-            <button 
+            <button
               onClick={handleBattleEnd}
               className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
             >

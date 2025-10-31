@@ -4,6 +4,7 @@ import Register from "../pages/Register.jsx";
 import SelectStarter from "../pages/SelectStarter.jsx";
 import Battle from "../pages/Battle.jsx";
 import PrivateRoute from "../components/PrivateRoute.jsx";
+import Dashboard from "../pages/Dashboard.jsx";
 
 export default function RouterConfig() {
   return (
@@ -27,7 +28,14 @@ export default function RouterConfig() {
           </PrivateRoute>
         }
       />
-
+      <Route
+        path="/dashboard"
+        element={
+          <PrivateRoute>
+            <Dashboard />
+          </PrivateRoute>
+        }
+      />  
       {/* Redirección por defecto */}
       <Route path="*" element={<Login />} />
     </Routes>
