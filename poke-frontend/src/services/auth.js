@@ -1,4 +1,4 @@
-const AUTH_URL = "http://localhost:8000/api/auth/"; // Ajusta si tu backend usa otra ruta base
+const AUTH_URL = "http://localhost:8000/api/auth/";
 
 export async function loginUser(credentials) {
   try {
@@ -18,7 +18,6 @@ export async function loginUser(credentials) {
     return null;
   }
 }
-
 
 export async function registerUser(userData) {
   try {

@@ -24,7 +24,7 @@ export async function chooseInitialPokemon(nombre_pokemon) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...getAuthHeaders(), // ⬅️ el token va aquí
+        ...getAuthHeaders(),
       },
       body: JSON.stringify({ nombre_pokemon }),
     });
