@@ -1,6 +1,5 @@
 from django.db import models
-
-from pokemon.models.tipo import Tipo
+from .tipo import Tipo
 
 
 class Movimiento(models.Model):

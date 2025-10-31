@@ -76,7 +76,7 @@ export default function SelectStarter() {
         setMessage(`🎉 ¡Has elegido a ${pokemonName.toUpperCase()} como tu Pokémon inicial!`);
 
         setTimeout(() => {
-          navigate("/dashboard", { replace: true }); 
+          navigate("/battle", { replace: true }); 
         }, 1500);
       } else if (res.status === 401) {
         setMessage("⚠️ Tu sesión expiró, por favor vuelve a iniciar sesión");

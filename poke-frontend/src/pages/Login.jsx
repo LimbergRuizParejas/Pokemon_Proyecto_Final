@@ -42,7 +42,7 @@ export default function Login() {
         if (sinPokemon) {
           navigate("/select-starter");
         } else {
-          navigate("/dashboard");
+          navigate("/battle");
         }
       } catch (err) {
         console.error("Error al verificar Pokémon:", err);
